@@ -182,11 +182,9 @@ MYCELIUM is designed to grow through community contribution. We welcome:
 - **Cultural Adaptations**: Enhance inclusivity for diverse communities and traditions
 - **Hardware Designs**: Develop improved feedback devices for embodied experience
 
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the Apache License 2.0 It’s a permissive open-source license that allows users to freely use, modify, and distribute the software, as long as they include the original copyright notice and disclaimer. This ensures the project remains open and accessible, which aligns perfectly with MYCELIUM’s goals of fostering collaboration, community-driven stewardship, and cultural inclusivity. 
 
 ## Acknowledgments
 
