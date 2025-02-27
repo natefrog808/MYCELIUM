@@ -1,7 +1,5 @@
 # MYCELIUM: The Earth's Song in Our Blood
 
-![MYCELIUM Banner](https://via.placeholder.com/800x200.png?text=MYCELIUM:+The+Earth's+Song+in+Our+Blood)
-
 ## Overview
 
 MYCELIUM is a revolutionary Bioregional Consciousness Network that reestablishes human connection to place through direct neural feedback, transforming our role as conscious participants in local ecosystems. Unlike conventional environmental monitoring systems, MYCELIUM enables users to physically *feel* ecological conditions through embodied neural feedback, creating an intuitive, visceral connection to the land.
