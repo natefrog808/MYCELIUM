@@ -961,4 +961,316 @@ class CommunityInterface:
         for lore in self.community_data["watershed_lore"]:
             required_rank = lore.get("unlock_requirement", "elder")
             lore_id = lore["id"]
+            
+            # Check if it's unlockable and not already unlocked
+            if lore_id not in user["unlocked_lore"]:
+                if (required_rank == "observer" or
+                    (required_rank == "participant" and rank in ["participant", "steward", "elder"]) or
+                    (required_rank == "steward" and rank in ["steward", "elder"]) or
+                    (required_rank == "elder" and rank == "elder")):
+                    
+                    # Unlock it!
+                    user["unlocked_lore"].append(lore_id)
+                    newly_unlocked.append(lore_id)
+                    
+                    # Notify user
+                    self._send_notification(
+                        user_id,
+                        "New Watershed Knowledge Unlocked",
+                        f"You've unlocked '{lore['title']}' - a piece of your watershed's story.",
+                        "lore_unlocked",
+                        {"lore_id": lore_id}
+                    )
+        
+        return newly_unlocked
+    
+    def get_community_activity(self, days=7):
+        """
+        Retrieve recent community engagement metrics.
+        
+        Parameters:
+        - days: Number of days to include
+        
+        Returns:
+        - activity: Dict with activity statistics
+        """
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Count recent actions and observations
+        recent_actions = [a for a in self.community_data["community_actions"] 
+                         if datetime.fromisoformat(a["timestamp"]) > cutoff_date]
+        recent_observations = [o for o in self.community_data["shared_observations"]
+                              if datetime.fromisoformat(o["timestamp"]) > cutoff_date]
+        
+        # Count active users
+        active_users = [u for u_id, u in self.users.items() 
+                       if datetime.fromisoformat(u["last_active"]) > cutoff_date]
+        
+        # Get recent collective pulses
+        recent_pulses = [p for p in self.channels["collective_pulse"]
+                        if p.get("time") and datetime.fromisoformat(p["time"]) > cutoff_date]
+        
+        return {
+            "timeframe": f"Past {days} days",
+            "active_users": len(active_users),
+            "active_percentage": len(active_users) / max(1, len(self.users)) * 100,
+            "new_actions": len(recent_actions),
+            "new_observations": len(recent_observations),
+            "collective_pulses": len(recent_pulses),
+            "most_active_domain": self._get_most_active_domain(recent_observations, recent_actions),
+            "community_health_trend": self._calculate_community_health_trend()
+        }
+    
+    def _get_most_active_domain(self, observations, actions):
+        """Determine which ecological domain has most community engagement"""
+        # Count domain occurrences
+        domains = {}
+        
+        for obs in observations:
+            domain = obs.get("type", "general")
+            domains[domain] = domains.get(domain, 0) + 1
+            
+        for action in actions:
+            domain = action.get("ecological_domain", "general")
+            domains[domain] = domains.get(domain, 0) + 1
+            
+        # Find the most common
+        if not domains:
+            return "general"
+            
+        return max(domains.items(), key=lambda x: x[1])[0]
+    
+    def _calculate_community_health_trend(self):
+        """Evaluate trend in community engagement and impact"""
+        # In real implementation, would use more sophisticated analytics
+        # For prototype, simple metric based on participation
+        
+        # Get community size factor (more users = higher expectations)
+        size_factor = min(1.0, len(self.users) / 50)
+        
+        # Calculate activity level (0-1)
+        if not self.community_data["total_users"]:
+            return "no_data"
+            
+        activity_ratio = self.community_data["active_users"] / self.community_data["total_users"]
+        
+        # Evaluate trend
+        if activity_ratio > 0.7:
+            return "thriving"
+        elif activity_ratio > 0.4:
+            return "healthy"
+        elif activity_ratio > 0.2:
+            return "maintaining"
+        else:
+            return "declining"
+    
+    def get_user_community_profile(self, user_id):
+        """
+        Retrieve a user's community participation profile.
+        
+        Parameters:
+        - user_id: Target user
+        
+        Returns:
+        - profile: Dict with community-specific user metrics
+        """
+        if user_id not in self.users:
+            return {"error": "User not registered in this community"}
+            
+        user = self.users[user_id]
+        
+        # Calculate connection strength based on participation
+        participation_score = (
+            user["shared_feedback_count"] * 0.2 +
+            user["actions_participated"] * 0.5 +
+            user["observations_shared"] * 0.3
+        ) / max(1, self.community_data["total_users"])
+        
+        # Update user's connection strength
+        user["connection_strength"] = min(1.0, participation_score)
+        
+        # Find user's sentinel species status
+        sentinel_health = "unknown"
+        if user.get("sentinel_species"):
+            # In real implementation, would check ecological data
+            sentinel_health = "stable"
+        
+        # Get personal goals summary
+        active_goals = [g for g in user.get("stewardship_goals", []) if g["status"] == "active"]
+        completed_goals = [g for g in user.get("stewardship_goals", []) if g["status"] == "completed"]
+        
+        return {
+            "user_id": user_id,
+            "joined_date": user["joined_date"],
+            "connection_strength": user["connection_strength"],
+            "community_rank": self._calculate_community_rank(user),
+            "participation_stats": {
+                "shared_feedback_sessions": user["shared_feedback_count"],
+                "actions_participated": user["actions_participated"],
+                "observations_shared": user["observations_shared"]
+            },
+            "bioregional_knowledge": user["bioregional_knowledge"],
+            "sentinel_species": {
+                "name": user.get("sentinel_species"),
+                "health": sentinel_health
+            },
+            "community_impact": self._calculate_user_impact(user_id),
+            "badges": user.get("badges", []),
+            "stewardship_goals": {
+                "active": len(active_goals),
+                "completed": len(completed_goals)
+            },
+            "unlocked_lore": len(user.get("unlocked_lore", []))
+        }
+    
+    def _calculate_community_rank(self, user):
+        """Determine user's standing in the community"""
+        # Based on connection strength
+        if user["connection_strength"] > 0.8:
+            return "elder"
+        elif user["connection_strength"] > 0.5:
+            return "steward"
+        elif user["connection_strength"] > 0.2:
+            return "participant"
+        else:
+            return "observer"
+    
+    def _calculate_user_impact(self, user_id):
+        """Evaluate user's impact on community and ecosystem"""
+        # In real implementation, would use more sophisticated metrics
+        # For prototype, simple count of engagements
+        
+        user = self.users[user_id]
+        return {
+            "community_effect": min(1.0, user["actions_participated"] * 0.1),
+            "knowledge_shared": min(1.0, user["observations_shared"] * 0.05),
+            "ecological_footprint": "positive" if user["actions_participated"] > 3 else "neutral"
+        }
+    
+    def get_community_summary(self):
+        """
+        Provide an overview of the community's structure and activities.
+        
+        Returns:
+        - summary: Dict with community information
+        """
+        # Calculate community metrics
+        avg_connection = sum(u["connection_strength"] for u in self.users.values()) / max(1, len(self.users))
+        active_actions = sum(1 for a in self.community_data["community_actions"] if a["status"] in ["proposed", "active"])
+        
+        # Count users by rank
+        ranks = {"elder": 0, "steward": 0, "participant": 0, "observer": 0}
+        for user in self.users.values():
+            rank = self._calculate_community_rank(user)
+            ranks[rank] = ranks.get(rank, 0) + 1
+        
+        return {
+            "name": self._get_watershed_name(),
+            "id": self.watershed_id,
+            "creation_date": self.community_data["creation_date"],
+            "members": {
+                "total": self.community_data["total_users"],
+                "active": self.community_data["active_users"],
+                "by_rank": ranks
+            },
+            "connection_strength": avg_connection,
+            "activities": {
+                "active_actions": active_actions,
+                "total_observations": len(self.community_data["shared_observations"]),
+                "collective_pulses": len(self.channels["collective_pulse"])
+            },
+            "sentinel_species": self.community_data["sentinel_species"],
+            "health": self._calculate_community_health_trend(),
+            "upcoming_events": self._get_upcoming_events(3)
+        }
+    
+    def _get_upcoming_events(self, count=3):
+        """Get the next few community events"""
+        now = datetime.now()
+        upcoming = []
+        
+        for event in self.calendar:
+            if event.get("date") and datetime.fromisoformat(event["date"]) > now:
+                upcoming.append(event)
+                
+        # Sort by date
+        upcoming.sort(key=lambda x: datetime.fromisoformat(x["date"]))
+        
+        return upcoming[:count]
+    
+    def get_user_notifications(self, user_id, include_read=False):
+        """
+        Retrieve notifications for a specific user.
+        
+        Parameters:
+        - user_id: Target user
+        - include_read: Whether to include already read notifications
+        
+        Returns:
+        - notifications: List of notification objects
+        """
+        if user_id not in self.users:
+            return {"error": "User not registered in this community"}
+            
+        notifications = self.users[user_id].get("notifications", [])
+        
+        if not include_read:
+            notifications = [n for n in notifications if not n.get("read", False)]
+            
+        # Sort by timestamp (newest first)
+        notifications.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
+        return {
+            "count": len(notifications),
+            "notifications": notifications
+        }
+    
+    def mark_notification_read(self, user_id, notification_id):
+        """Mark a notification as read"""
+        if user_id not in self.users:
+            return {"error": "User not registered in this community"}
+            
+        for notification in self.users[user_id].get("notifications", []):
+            if notification.get("id") == notification_id:
+                notification["read"] = True
+                return {"success": True}
+                
+        return {"error": "Notification not found"}
+    
+    def get_watershed_lore(self, user_id):
+        """
+        Get available watershed knowledge for a user.
+        
+        Parameters:
+        - user_id: Target user
+        
+        Returns:
+        - lore: List of available lore items
+        """
+        if user_id not in self.users:
+            return {"error": "User not registered in this community"}
+            
+        user = self.users[user_id]
+        unlocked_ids = user.get("unlocked_lore", [])
+        
+        # Filter lore to items user has unlocked
+        available_lore = [lore for lore in self.community_data["watershed_lore"] 
+                         if lore["id"] in unlocked_ids]
+                         
+        # Sort by ID (typically chronological)
+        available_lore.sort(key=lambda x: x["id"])
+        
+        # Get locked lore count for motivation
+        locked_count = len(self.community_data["watershed_lore"]) - len(available_lore)
+        
+        return {
+            "unlocked": len(available_lore),
+            "locked": locked_count,
+            "lore": available_lore
+        }
+        
+        # Check each lore item against user's rank
+        for lore in self.community_data["watershed_lore"]:
+            required_rank = lore.get("unlock_requirement", "elder")
+            lore_id = lore["id"]
           
