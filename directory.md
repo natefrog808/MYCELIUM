@@ -1,3 +1,4 @@
+'''
 mycelium/
 ├── __init__.py
 ├── translators/
@@ -18,3 +19,4 @@ mycelium/
 │   ├── __init__.py
 │   ├── basic_usage.py
 ├── README.md
+'''
